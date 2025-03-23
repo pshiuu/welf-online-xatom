@@ -2,7 +2,6 @@ import Plyr from "plyr";
 import KeenSlider from "keen-slider";
 
 export const initBeispiel = () => {
-  console.log("savati MOIIIN!");
   const controls = [
     "play", // Play/pause playback
     "current-time", // The current time of playback

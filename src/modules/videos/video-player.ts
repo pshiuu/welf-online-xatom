@@ -51,120 +51,127 @@ export const initVideoPlayer = () => {
     });
   };
 
-  // Handle play button clicks
-  const handlePlayButtonClicks = () => {
-    document.addEventListener("click", (event) => {
-      const target = event.target as Element;
-      if (target.closest('.plyr__control[data-plyr="play"]')) {
-        const button = target.closest('.plyr__control[data-plyr="play"]');
-        const plyr = button.closest(".plyr");
-        const videoWrapper = plyr?.querySelector(".plyr__video-wrapper");
-        const container = plyr?.closest(
-          ".beispiel-video-wrap, .team-item-wrap"
-        );
-
-        // Hide poster overlays
-        if (container) {
-          const overlays = container.querySelectorAll(".poster-overlay");
-          overlays.forEach((overlay) => {
-            (overlay as HTMLElement).style.display = "none";
-          });
-        }
-
-        if (plyr) {
-          const poster = plyr.querySelector(".plyr__poster");
-          if (poster) {
-            (poster as HTMLElement).style.display = "none";
-          }
-        }
-
-        // Show loading spinner
-        if (videoWrapper) {
-          const spinner = videoWrapper.querySelector(".video-loading-spinner");
-          if (spinner) {
-            (spinner as HTMLElement).style.display = "block";
-
-            // Hide spinner after a delay
-            setTimeout(() => {
-              (spinner as HTMLElement).style.display = "none";
-            }, 2000);
-          }
-        }
-
-        // Observe class changes to detect when video is playing
-        if (plyr) {
-          const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-              if (mutation.attributeName === "class") {
-                if (plyr.classList.contains("plyr--playing")) {
-                  const spinner = plyr.querySelector(".video-loading-spinner");
-                  if (spinner) {
-                    (spinner as HTMLElement).style.display = "none";
-                  }
-                }
-              }
-            });
-          });
-
-          observer.observe(plyr, { attributes: true });
-
-          setTimeout(() => {
-            observer.disconnect();
-          }, 2000);
-        }
-      }
+  // Configure video elements to not preload
+  const configureVideoElements = () => {
+    const videoElements = document.querySelectorAll("video.js-player");
+    videoElements.forEach((video) => {
+      (video as HTMLVideoElement).preload = "none";
+      (video as HTMLVideoElement).setAttribute("preload", "none");
     });
   };
 
-  // Handle video events
-  const handleVideoEvents = () => {
-    const videoElements = document.querySelectorAll(".js-player");
+  // Show loading spinner
+  const showLoadingSpinner = (player: Plyr) => {
+    // We know elements.wrapper exists, but TypeScript doesn't
+    const wrapper = (player as any).elements?.wrapper;
+    if (wrapper) {
+      const videoWrapper = wrapper.querySelector(".plyr__video-wrapper");
+      if (videoWrapper) {
+        const spinner = videoWrapper.querySelector(".video-loading-spinner");
+        if (spinner) {
+          (spinner as HTMLElement).style.display = "block";
+        }
+      }
+    }
+  };
 
-    videoElements.forEach((video) => {
-      const videoElement = video as HTMLVideoElement;
-      const plyrWrapper = video.closest(".plyr__video-wrapper");
-      const spinner = plyrWrapper?.querySelector(".video-loading-spinner");
-
-      const hideSpinner = () => {
+  // Hide loading spinner
+  const hideLoadingSpinner = (player: Plyr) => {
+    // We know elements.wrapper exists, but TypeScript doesn't
+    const wrapper = (player as any).elements?.wrapper;
+    if (wrapper) {
+      const videoWrapper = wrapper.querySelector(".plyr__video-wrapper");
+      if (videoWrapper) {
+        const spinner = videoWrapper.querySelector(".video-loading-spinner");
         if (spinner) {
           (spinner as HTMLElement).style.display = "none";
         }
-      };
+      }
+    }
+  };
 
-      videoElement.addEventListener("play", () => {
-        const container = video.closest(
+  // Keep poster visible until video is ready
+  const keepPosterVisible = (player: Plyr) => {
+    // Make sure poster is visible
+    const poster = (player as any).elements?.poster;
+    if (poster) {
+      poster.style.display = "block";
+    }
+
+    // Also keep any custom poster overlays visible
+    const container = (player as any).elements?.container;
+    if (container) {
+      const parentContainer = container.closest(
+        ".beispiel-video-wrap, .team-item-wrap"
+      );
+      if (parentContainer) {
+        const overlays = parentContainer.querySelectorAll(".poster-overlay");
+        overlays.forEach((overlay) => {
+          (overlay as HTMLElement).style.display = "block";
+        });
+      }
+    }
+  };
+
+  // Handle video events for each player
+  const setupPlayerEvents = (player: Plyr) => {
+    // When video is clicked to play, start loading it
+    player.on("play", () => {
+      // Show loading spinner while video loads
+      showLoadingSpinner(player);
+
+      // Change preload attribute to start loading video
+      const media = (player as any).media;
+      if (media && media.tagName?.toLowerCase() === "video") {
+        media.preload = "auto";
+      }
+    });
+
+    // When video is loaded and can play
+    player.on("canplay", () => {
+      hideLoadingSpinner(player);
+    });
+
+    // When video actually starts playing
+    player.on("playing", () => {
+      hideLoadingSpinner(player);
+
+      // Only hide poster when video is actually playing
+      const poster = (player as any).elements?.poster;
+      if (poster) {
+        poster.style.display = "none";
+      }
+
+      // Also hide any custom poster overlays
+      const container = (player as any).elements?.container;
+      if (container) {
+        const parentContainer = container.closest(
           ".beispiel-video-wrap, .team-item-wrap"
         );
-        if (container) {
-          const overlays = container.querySelectorAll(".poster-overlay");
+        if (parentContainer) {
+          const overlays = parentContainer.querySelectorAll(".poster-overlay");
           overlays.forEach((overlay) => {
             (overlay as HTMLElement).style.display = "none";
           });
         }
-
-        const plyr = video.closest(".plyr");
-        const poster = plyr?.querySelector(".plyr__poster");
-        if (poster) {
-          (poster as HTMLElement).style.display = "none";
-        }
-
-        hideSpinner();
-      });
-
-      videoElement.addEventListener("playing", hideSpinner);
-      videoElement.addEventListener("timeupdate", hideSpinner);
-      videoElement.addEventListener("canplay", hideSpinner);
+      }
     });
-  };
 
-  // Load Plyr CSS
-  const loadPlyrCSS = () => {
-    setTimeout(() => {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = "https://cdn.plyr.io/3.5.6/plyr.css";
-      document.head.appendChild(link);
-    }, 100);
+    // Handle errors
+    player.on("error", () => {
+      hideLoadingSpinner(player);
+    });
+
+    // Make sure poster appears at first
+    keepPosterVisible(player);
+
+    // Reset the player when ended, which will show poster again
+    player.on("ended", () => {
+      const poster = (player as any).elements?.poster;
+      if (poster) {
+        poster.style.display = "block";
+      }
+    });
   };
 
   // Initialize everything when DOM is loaded
@@ -178,15 +185,25 @@ export const initVideoPlayer = () => {
 
   // Main initialization function
   const initializeAll = () => {
-    loadPlyrCSS();
     addLoadingSpinnerStyles();
+    configureVideoElements();
 
-    // Initialize all player instances
-    const players = Plyr.setup(".js-player", { controls });
+    // Initialize all player instances with options to prevent autoloading
+    const players = Plyr.setup(".js-player", {
+      controls,
+      autoplay: false,
+      blankVideo: "https://cdn.plyr.io/static/blank.mp4",
+      previewThumbnails: { enabled: false },
+    });
 
     addLoadingSpinners();
-    handlePlayButtonClicks();
-    handleVideoEvents();
+
+    // Set up events for each player
+    if (Array.isArray(players)) {
+      players.forEach((player) => {
+        setupPlayerEvents(player);
+      });
+    }
 
     // Handle video cover click events
     const handleCoverClick = () => {
@@ -207,6 +224,17 @@ export const initVideoPlayer = () => {
             if (playerIndex !== -1 && players[playerIndex]) {
               // Hide the cover
               (cover as HTMLElement).style.display = "none";
+
+              // Show loading spinner
+              showLoadingSpinner(players[playerIndex]);
+
+              // Start loading video
+              const media = (players[playerIndex] as any).media;
+              if (media && media.tagName?.toLowerCase() === "video") {
+                media.preload = "auto";
+                // Force a load of the video
+                media.load();
+              }
 
               // Play the video
               players[playerIndex].play();
