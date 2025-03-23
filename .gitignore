@@ -11,6 +11,7 @@ yarn-error.log
 /dist
 /build
 /.cache
+/.parcel-cache
 
 # Environment files
 .env
