@@ -12,17 +12,48 @@ export const initBeispiel = () => {
   ];
 
   // Initialize Plyr with options to ensure poster generation from video
-  const player = Plyr.setup(".js-player", {
+  const players = Plyr.setup(".js-player", {
     controls,
     loadSprite: true,
     blankVideo: "",
-    previewThumbnails: { enabled: true, src: "" }, // This will use first frame when source not specified
+    previewThumbnails: { enabled: false }, // This will use first frame when source not specified
     autoplay: false, // Prevent autoplay to ensure poster is visible
     autopause: true,
     resetOnEnd: true,
     // When a poster isn't explicitly defined, Plyr will use the first frame as poster
     invertTime: false,
   });
+
+  // Handle video cover click events
+  const handleCoverClick = () => {
+    const coverElements = document.querySelectorAll(".plyr_cover");
+
+    coverElements.forEach((cover) => {
+      cover.addEventListener("click", (event) => {
+        // Get the parent plyr_component
+        const playerComponent = cover.closest(".plyr_component");
+
+        if (playerComponent) {
+          // Find the Plyr instance for this component
+          const videoElement = playerComponent.querySelector(".js-player");
+          const playerIndex = Array.from(
+            document.querySelectorAll(".js-player")
+          ).indexOf(videoElement);
+
+          if (playerIndex !== -1 && players[playerIndex]) {
+            // Hide the cover
+            (cover as HTMLElement).style.display = "none";
+
+            // Play the video
+            players[playerIndex].play();
+          }
+        }
+      });
+    });
+  };
+
+  // Initialize the cover click handlers
+  handleCoverClick();
 
   // Select all elements with class .keen-slider.beispiel
   document
