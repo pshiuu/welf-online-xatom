@@ -6,7 +6,7 @@ export const initMarquee = () => {
   var marqueeSlider = new KeenSlider("#marquee", {
     loop: true,
     renderMode: "performance",
-    drag: false,
+    drag: true,
     mode: "free",
 
     slides: {
